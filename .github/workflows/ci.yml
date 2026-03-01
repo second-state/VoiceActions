@@ -64,13 +64,14 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Install Python dependencies
-        run: pip install huggingface_hub transformers
-
       - name: Download models
         run: |
-          huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
-          huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+          python3 -m pip install huggingface_hub transformers
+          python3 -c "
+          from huggingface_hub import snapshot_download
+          snapshot_download('Qwen/Qwen3-ASR-0.6B', local_dir='models/Qwen3-ASR-0.6B')
+          snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='models/Qwen3-TTS-12Hz-0.6B-CustomVoice')
+          "
 
       - name: Generate tokenizer.json
         run: |
@@ -160,13 +161,14 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Install Python dependencies
-        run: pip install huggingface_hub transformers
-
       - name: Download models
         run: |
-          huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
-          huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+          python3 -m pip install huggingface_hub transformers
+          python3 -c "
+          from huggingface_hub import snapshot_download
+          snapshot_download('Qwen/Qwen3-ASR-0.6B', local_dir='models/Qwen3-ASR-0.6B')
+          snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='models/Qwen3-TTS-12Hz-0.6B-CustomVoice')
+          "
 
       - name: Generate tokenizer.json
         run: |
@@ -246,13 +248,14 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Install Python dependencies
-        run: pip3 install huggingface_hub transformers --break-system-packages
-
       - name: Download models
         run: |
-          huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
-          huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+          python3 -m pip install --break-system-packages huggingface_hub transformers
+          python3 -c "
+          from huggingface_hub import snapshot_download
+          snapshot_download('Qwen/Qwen3-ASR-0.6B', local_dir='models/Qwen3-ASR-0.6B')
+          snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='models/Qwen3-TTS-12Hz-0.6B-CustomVoice')
+          "
 
       - name: Generate tokenizer.json
         run: |
