@@ -46,8 +46,8 @@ struct Cli {
     #[arg(long)]
     language: Option<String>,
 
-    /// TTS speaker name (default: "Vivian")
-    #[arg(long, default_value = "Vivian")]
+    /// TTS speaker name (default: "Ryan")
+    #[arg(long, default_value = "Ryan")]
     speaker: String,
 }
 
@@ -88,7 +88,7 @@ fn main() -> Result<()> {
 
     // --- Step 3: TTS – synthesize speech from processed text ---
     tracing::info!("Synthesizing speech");
-    let tts_language = cli.language.as_deref().unwrap_or("en");
+    let tts_language = cli.language.as_deref().unwrap_or("english");
     let (samples, sample_rate) = tts::synthesize(
         cli.tts_model.to_str().context("invalid TTS model path")?,
         &processed_text,
