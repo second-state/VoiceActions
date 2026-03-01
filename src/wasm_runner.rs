@@ -34,8 +34,12 @@ pub fn run_wasm_chain(wasm_files: &[String], input: &str) -> Result<String> {
 }
 
 fn run_single_wasm(wasm_path: &str, input: &str) -> Result<String> {
+    // Pass host environment variables through to the WASI module
+    let envs: Vec<String> = std::env::vars().map(|(k, v)| format!("{k}={v}")).collect();
+    let env_refs: Vec<&str> = envs.iter().map(|s| s.as_str()).collect();
+
     // Create WASI module (needed for wasm32-wasip1 targets)
-    let mut wasi = WasiModule::create(None, None, None)
+    let mut wasi = WasiModule::create(None, Some(env_refs), None)
         .map_err(|e| anyhow::anyhow!("{e}"))
         .context("failed to create WASI module")?;
 

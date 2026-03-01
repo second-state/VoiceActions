@@ -56,7 +56,9 @@ jobs:
       - name: Build WASM modules
         env:
           RUSTFLAGS: ""
-        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
+        run: |
+          cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
+          cd wasm/llm && RUSTFLAGS="--cfg wasmedge --cfg tokio_unstable" cargo build --target wasm32-wasip1 --release
 
       - name: Run tests
         env:
@@ -170,7 +172,9 @@ jobs:
       - name: Build WASM modules
         env:
           RUSTFLAGS: ""
-        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
+        run: |
+          cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
+          cd wasm/llm && RUSTFLAGS="--cfg wasmedge --cfg tokio_unstable" cargo build --target wasm32-wasip1 --release
 
       - name: Run tests
         env:
@@ -354,4 +358,6 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Check WASM modules formatting
-        run: cargo fmt --manifest-path wasm/echo/Cargo.toml -- --check
+        run: |
+          cargo fmt --manifest-path wasm/echo/Cargo.toml -- --check
+          cargo fmt --manifest-path wasm/llm/Cargo.toml -- --check
