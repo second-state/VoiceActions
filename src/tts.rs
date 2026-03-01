@@ -13,10 +13,10 @@ pub fn synthesize(
     speaker: &str,
     language: &str,
 ) -> Result<(Vec<f32>, u32)> {
-    // Determine device based on backend — matches qwen3_audio_api approach
+    // init_mlx(true) is called once in main() — do NOT call it again here,
+    // as a second mlx_set_default_device call can corrupt global MLX state.
     #[cfg(feature = "mlx")]
     let device = {
-        qwen3_tts::backend::mlx::stream::init_mlx(true);
         tracing::info!("TTS using MLX Metal GPU");
         Device::Gpu(0)
     };

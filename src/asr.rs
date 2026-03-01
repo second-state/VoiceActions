@@ -21,7 +21,8 @@ pub fn transcribe(model_dir: &str, audio_file: &str, language: Option<&str>) -> 
 
     #[cfg(feature = "mlx")]
     let device = {
-        qwen3_asr::backend::mlx::stream::init_mlx(true);
+        // init_mlx(true) is called once in main() — do NOT call it again here,
+        // as a second mlx_set_default_device call can corrupt global MLX state.
         tracing::info!("Using MLX Metal GPU");
         Device::Gpu(0)
     };
