@@ -272,11 +272,12 @@ VoiceActions/
 
 ### CI (`ci.yml`)
 
-Runs on every push to `main` and on pull requests. Three jobs:
+Runs on every push to `main` and on pull requests. Four jobs:
 
 | Job | Runner | Backend | What it does |
 |---|---|---|---|
-| Linux (tch-backend) | `ubuntu-latest` | tch | Downloads libtorch, builds with `build-ffmpeg`, runs tests |
+| Linux x86_64 (tch-backend) | `ubuntu-latest` | tch | Downloads libtorch CPU, builds with `build-ffmpeg`, runs tests |
+| Linux ARM64 (tch-backend) | `ubuntu-24.04-arm` | tch | Downloads libtorch ARM64, builds with `build-ffmpeg`, runs tests |
 | macOS ARM64 (mlx) | `macos-14` | mlx | Builds with MLX + `build-ffmpeg`, runs tests |
 | Lint & Format | `ubuntu-latest` | — | `cargo fmt --check` on all crates |
 
