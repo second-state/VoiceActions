@@ -54,14 +54,13 @@ struct Cli {
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    // Initialize MLX backend for both crates at startup.
-    // Each crate has its own DEFAULT_STREAM static, but they share the MLX C
-    // library's global default device.  Calling init_mlx on both here (before
-    // any model loading) ensures the global device is set consistently.
+    // Initialize MLX for both crates upfront, TTS first then ASR —
+    // matching qwen3_audio_api's init order.  Each crate has its own
+    // DEFAULT_STREAM but they share the MLX C library's global state.
     #[cfg(feature = "mlx")]
     {
-        qwen3_asr::backend::mlx::stream::init_mlx(true);
         qwen3_tts::backend::mlx::stream::init_mlx(true);
+        qwen3_asr::backend::mlx::stream::init_mlx(true);
     }
 
     let cli = Cli::parse();
