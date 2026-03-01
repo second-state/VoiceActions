@@ -85,9 +85,13 @@ jobs:
 
       - name: Run end-to-end test
         run: |
-          # Find WasmEdge library in build output
-          WASMEDGE_DIR=$(find target/release/build -path "*/wasmedge-sys-*/out/standalone/*/lib" -type d | head -1)
-          export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+          # Find WasmEdge shared library in build output and add its directory to LD_LIBRARY_PATH
+          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
+          if [ -n "$WASMEDGE_LIB" ]; then
+            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
+            echo "Found WasmEdge at: $WASMEDGE_DIR"
+            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+          fi
 
           ./target/release/voice-actions \
             --input audio/sample.wav \
@@ -182,8 +186,12 @@ jobs:
 
       - name: Run end-to-end test
         run: |
-          WASMEDGE_DIR=$(find target/release/build -path "*/wasmedge-sys-*/out/standalone/*/lib" -type d | head -1)
-          export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
+          if [ -n "$WASMEDGE_LIB" ]; then
+            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
+            echo "Found WasmEdge at: $WASMEDGE_DIR"
+            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+          fi
 
           ./target/release/voice-actions \
             --input audio/sample.wav \
@@ -269,8 +277,12 @@ jobs:
 
       - name: Run end-to-end test
         run: |
-          WASMEDGE_DIR=$(find target/release/build -path "*/wasmedge-sys-*/out/standalone/*/lib" -type d | head -1)
-          export DYLD_LIBRARY_PATH="${WASMEDGE_DIR}:${DYLD_LIBRARY_PATH}"
+          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge*.dylib" -type f 2>/dev/null | head -1)
+          if [ -n "$WASMEDGE_LIB" ]; then
+            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
+            echo "Found WasmEdge at: $WASMEDGE_DIR"
+            export DYLD_LIBRARY_PATH="${WASMEDGE_DIR}:${DYLD_LIBRARY_PATH}"
+          fi
 
           ./target/release/voice-actions \
             --input audio/sample.wav \
