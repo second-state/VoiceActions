@@ -64,11 +64,8 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Set up Python venv and install dependencies
-        run: |
-          python3 -m venv .venv
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-          .venv/bin/pip install huggingface_hub transformers
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
 
       - name: Download models
         run: |
@@ -163,11 +160,8 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Set up Python venv and install dependencies
-        run: |
-          python3 -m venv .venv
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-          .venv/bin/pip install huggingface_hub transformers
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
 
       - name: Download models
         run: |
@@ -252,11 +246,8 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Set up Python venv and install dependencies
-        run: |
-          python3 -m venv .venv
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-          .venv/bin/pip install huggingface_hub transformers
+      - name: Install Python dependencies
+        run: pip3 install huggingface_hub transformers --break-system-packages
 
       - name: Download models
         run: |
