@@ -1,0 +1,45 @@
+[package]
+name = "voice-actions"
+version = "0.1.0"
+edition = "2021"
+description = "Voice-to-voice processing pipeline: ASR → WASM chain → TTS"
+license = "Apache-2.0"
+
+[[bin]]
+name = "voice-actions"
+path = "src/main.rs"
+
+[features]
+default = ["tch-backend"]
+# Use libtorch/PyTorch backend (Linux CPU/CUDA, macOS CPU)
+tch-backend = ["qwen3_asr/tch-backend", "qwen3_tts/tch-backend", "dep:tch"]
+# Use Apple MLX backend (macOS Apple Silicon with Metal GPU)
+mlx = ["qwen3_asr/mlx", "qwen3_tts/mlx"]
+# Link FFmpeg statically (no system FFmpeg install required)
+static-ffmpeg = ["qwen3_asr/static-ffmpeg", "ffmpeg-next/static"]
+# Build FFmpeg from source and link statically (with MP3 and Opus codec support)
+build-ffmpeg = ["static-ffmpeg", "qwen3_asr/build-ffmpeg", "ffmpeg-next/build", "ffmpeg-next/build-lib-mp3lame", "ffmpeg-next/build-lib-opus"]
+
+[dependencies]
+# ASR (speech-to-text) — default-features off so we control the backend
+qwen3_asr = { git = "https://github.com/second-state/qwen3_asr_rs", default-features = false }
+
+# TTS (text-to-speech) — default-features off so we control the backend
+qwen3_tts = { git = "https://github.com/second-state/qwen3_tts_rs", default-features = false }
+
+# PyTorch bindings — only needed for tch-backend
+tch = { version = "0.20", optional = true }
+
+# WASM runtime — bundled downloads and statically links WasmEdge
+wasmedge-sdk = { version = "0.14", features = ["standalone"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Audio encoding (raw samples → MP3 via libmp3lame)
+ffmpeg-next = "8"
+
+# Error handling & logging
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"

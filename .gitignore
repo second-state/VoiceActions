@@ -1,0 +1,5 @@
+/target
+/models/
+example_wasm/target/
+*.wav
+*.mp3

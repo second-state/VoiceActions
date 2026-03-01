@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Linux — tch-backend (libtorch CPU), FFmpeg built from source
+  # ---------------------------------------------------------------------------
+  build-linux:
+    name: Linux (tch-backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: linux-tch
+
+      # Build toolchain for ffmpeg-next build feature + codec libraries
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            nasm \
+            libclang-dev \
+            pkg-config \
+            libopus-dev \
+            libmp3lame-dev
+
+      # Download libtorch (CPU) for tch crate
+      - name: Download libtorch
+        run: |
+          wget -q "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcpu.zip" -O libtorch.zip
+          unzip -q libtorch.zip
+          echo "LIBTORCH=$PWD/libtorch" >> "$GITHUB_ENV"
+          echo "LIBTORCH_CXX11_ABI=1" >> "$GITHUB_ENV"
+          echo "LIBTORCH_BYPASS_VERSION_CHECK=1" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PWD/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Build voice-actions (tch-backend, build-ffmpeg)
+        run: cargo build --release --features build-ffmpeg
+
+      - name: Build example WASM module
+        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+
+      - name: Run tests
+        run: cargo test --release --features build-ffmpeg
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-actions-linux-x86_64
+          path: target/release/voice-actions
+
+      - name: Upload example WASM
+        uses: actions/upload-artifact@v4
+        with:
+          name: example-wasm
+          path: example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+
+  # ---------------------------------------------------------------------------
+  # macOS ARM64 — mlx backend (Apple Silicon Metal GPU), FFmpeg built from source
+  # ---------------------------------------------------------------------------
+  build-macos:
+    name: macOS ARM64 (mlx)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: macos-mlx
+
+      # cmake needed for mlx backend build; nasm for ffmpeg build; opus/lame for codecs
+      - name: Install build dependencies
+        run: |
+          brew install cmake nasm pkg-config opus lame
+
+      - name: Build voice-actions (mlx, build-ffmpeg)
+        env:
+          CFLAGS: "-I/opt/homebrew/include"
+          LDFLAGS: "-L/opt/homebrew/lib"
+          LIBRARY_PATH: "/opt/homebrew/lib"
+        run: cargo build --release --no-default-features --features mlx,build-ffmpeg
+
+      - name: Build example WASM module
+        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+
+      - name: Run tests
+        env:
+          CFLAGS: "-I/opt/homebrew/include"
+          LDFLAGS: "-L/opt/homebrew/lib"
+          LIBRARY_PATH: "/opt/homebrew/lib"
+        run: cargo test --release --no-default-features --features mlx,build-ffmpeg
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-actions-macos-arm64
+          path: target/release/voice-actions
+
+  # ---------------------------------------------------------------------------
+  # Lint & format (fast, no heavy deps needed — check only)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-wasip1
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Check example_wasm formatting
+        run: cargo fmt --manifest-path example_wasm/Cargo.toml -- --check

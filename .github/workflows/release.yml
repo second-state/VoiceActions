@@ -1,0 +1,238 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux x86_64
+            backend: tch
+            asset-name: voice-actions-linux-x86_64
+            libtorch-url: https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcpu.zip
+            libtorch-archive: libtorch.zip
+            lib-arch: x86_64-linux-gnu
+          - os: ubuntu-latest
+            name: Linux x86_64 (CUDA)
+            backend: tch
+            asset-name: voice-actions-linux-x86_64-cuda
+            libtorch-url: https://download.pytorch.org/libtorch/cu128/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcu128.zip
+            libtorch-archive: libtorch.zip
+            lib-arch: x86_64-linux-gnu
+          - os: ubuntu-24.04-arm
+            name: Linux ARM64
+            backend: tch
+            asset-name: voice-actions-linux-aarch64
+            libtorch-url: https://github.com/second-state/libtorch-releases/releases/download/v2.7.1/libtorch-cxx11-abi-aarch64-2.7.1.tar.gz
+            libtorch-archive: libtorch.tar.gz
+            lib-arch: aarch64-linux-gnu
+          - os: macos-latest
+            name: macOS ARM64
+            backend: mlx
+            asset-name: voice-actions-macos-aarch64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.name }})
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.backend == 'tch'
+
+      - uses: actions/checkout@v4
+        if: matrix.backend == 'mlx'
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.backend }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-${{ matrix.backend }}-cargo-registry-
+
+      # -----------------------------------------------------------------------
+      # Linux build dependencies
+      # -----------------------------------------------------------------------
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            nasm \
+            libclang-dev \
+            pkg-config \
+            libopus-dev \
+            libmp3lame-dev \
+            patchelf
+
+      - name: Download libtorch
+        if: matrix.backend == 'tch'
+        run: curl -Lo ${{ matrix.libtorch-archive }} "${{ matrix.libtorch-url }}"
+
+      - name: Extract libtorch
+        if: matrix.backend == 'tch'
+        run: |
+          if [[ "${{ matrix.libtorch-archive }}" == *.zip ]]; then
+            unzip -q ${{ matrix.libtorch-archive }}
+          else
+            tar xzf ${{ matrix.libtorch-archive }}
+          fi
+
+      - name: Set linker rpath-link (Linux)
+        if: matrix.backend == 'tch' && runner.os == 'Linux'
+        run: echo "RUSTFLAGS=-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib" >> "$GITHUB_ENV"
+
+      # -----------------------------------------------------------------------
+      # macOS build dependencies
+      # -----------------------------------------------------------------------
+      - name: Install build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake nasm pkg-config opus lame
+
+      # -----------------------------------------------------------------------
+      # Build
+      # -----------------------------------------------------------------------
+      - name: Build (tch-backend)
+        if: matrix.backend == 'tch'
+        env:
+          LIBTORCH: ${{ github.workspace }}/libtorch
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
+        run: cargo build --release --features build-ffmpeg
+
+      - name: Build (mlx)
+        if: matrix.backend == 'mlx'
+        env:
+          CFLAGS: "-I/opt/homebrew/include"
+          LDFLAGS: "-L/opt/homebrew/lib"
+          LIBRARY_PATH: "/opt/homebrew/lib"
+        run: cargo build --release --no-default-features --features mlx,build-ffmpeg
+
+      - name: Build example WASM module
+        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+
+      # -----------------------------------------------------------------------
+      # Package
+      # -----------------------------------------------------------------------
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          BINARY=target/release/voice-actions
+          mkdir -p ${{ matrix.asset-name }}/lib
+
+          # Binary
+          cp "$BINARY" ${{ matrix.asset-name }}/
+
+          # Example WASM module
+          cp example_wasm/target/wasm32-wasip1/release/example_wasm.wasm ${{ matrix.asset-name }}/
+
+          # libtorch runtime
+          cp -r libtorch ${{ matrix.asset-name }}/
+
+          # Bundle dynamically linked lame/opus shared libraries
+          for lib in mp3lame opus; do
+            so_file=$(ldd "$BINARY" | grep "lib${lib}" | awk '{print $3}')
+            if [ -n "$so_file" ] && [ -f "$so_file" ]; then
+              echo "Bundling $so_file"
+              cp "$so_file" ${{ matrix.asset-name }}/lib/
+            fi
+          done
+
+          # Bundle WasmEdge shared library (may not be on system path — find in build output)
+          WASMEDGE_LIB=$(ldd "$BINARY" | grep "libwasmedge" | awk '{print $3}')
+          if [ -z "$WASMEDGE_LIB" ] || [ ! -f "$WASMEDGE_LIB" ]; then
+            WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f | head -1)
+          fi
+          if [ -n "$WASMEDGE_LIB" ] && [ -f "$WASMEDGE_LIB" ]; then
+            echo "Bundling WasmEdge: $WASMEDGE_LIB"
+            cp "$WASMEDGE_LIB" ${{ matrix.asset-name }}/lib/
+          fi
+
+          # Set RPATH so binary finds bundled libs at runtime
+          patchelf --set-rpath '$ORIGIN/lib:$ORIGIN/libtorch/lib' \
+            ${{ matrix.asset-name }}/voice-actions
+
+          echo "Bundled libraries:"
+          ls -la ${{ matrix.asset-name }}/lib/
+
+          tar czf ${{ matrix.asset-name }}.tar.gz ${{ matrix.asset-name }}
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          BINARY=target/release/voice-actions
+          mkdir -p ${{ matrix.asset-name }}/lib
+
+          # Example WASM module
+          cp example_wasm/target/wasm32-wasip1/release/example_wasm.wasm ${{ matrix.asset-name }}/
+
+          # MLX Metal GPU kernels
+          find target/release/build -name "mlx.metallib" -exec cp {} ${{ matrix.asset-name }}/ \; 2>/dev/null
+
+          # Bundle dynamically linked lame/opus libs and fix paths
+          for lib in mp3lame opus; do
+            dylib_ref=$(otool -L "$BINARY" | grep "lib${lib}" | awk '{print $1}')
+            if [ -n "$dylib_ref" ]; then
+              dylib_file="$dylib_ref"
+              if [ ! -f "$dylib_file" ]; then
+                dylib_file="/opt/homebrew/lib/$(basename $dylib_ref)"
+              fi
+              if [ -n "$dylib_file" ] && [ -f "$dylib_file" ]; then
+                echo "Bundling $dylib_file (ref: $dylib_ref)"
+                cp "$dylib_file" ${{ matrix.asset-name }}/lib/
+                install_name_tool -change "$dylib_ref" \
+                  "@executable_path/lib/$(basename $dylib_file)" "$BINARY"
+              fi
+            fi
+          done
+
+          # Bundle WasmEdge dylib (linked via @rpath — find in build output)
+          WASMEDGE_REF=$(otool -L "$BINARY" | grep "libwasmedge" | awk '{print $1}')
+          if [ -n "$WASMEDGE_REF" ]; then
+            WASMEDGE_LIB=$(find target/release/build -name "$(basename $WASMEDGE_REF)" -type f 2>/dev/null | head -1)
+            if [ -n "$WASMEDGE_LIB" ] && [ -f "$WASMEDGE_LIB" ]; then
+              echo "Bundling WasmEdge: $WASMEDGE_LIB (ref: $WASMEDGE_REF)"
+              cp "$WASMEDGE_LIB" ${{ matrix.asset-name }}/lib/
+              install_name_tool -change "$WASMEDGE_REF" \
+                "@executable_path/lib/$(basename $WASMEDGE_LIB)" "$BINARY"
+            fi
+          fi
+
+          cp "$BINARY" ${{ matrix.asset-name }}/
+
+          echo "Bundled libraries:"
+          ls -la ${{ matrix.asset-name }}/lib/
+          echo "Binary dylib references after patching:"
+          otool -L ${{ matrix.asset-name }}/voice-actions
+
+          zip -r ${{ matrix.asset-name }}.zip ${{ matrix.asset-name }}
+
+      # -----------------------------------------------------------------------
+      # Upload to GitHub Release
+      # -----------------------------------------------------------------------
+      - name: Upload release asset (Linux)
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.asset-name }}.tar.gz"
+
+      - name: Upload release asset (macOS)
+        if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.asset-name }}.zip"
