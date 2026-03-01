@@ -61,17 +61,52 @@ jobs:
           RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo test --release --features build-ffmpeg
 
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: voice-actions-linux-x86_64
-          path: target/release/voice-actions
+      # -------------------------------------------------------------------
+      # End-to-end test
+      # -------------------------------------------------------------------
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
 
-      - name: Upload example WASM
+      - name: Download models
+        run: |
+          huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
+          huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+
+      - name: Generate tokenizer.json
+        run: |
+          python3 -c "
+          from transformers import AutoTokenizer
+          for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
+              path = f'models/{model}'
+              tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+              tok.backend_tokenizer.save(f'{path}/tokenizer.json')
+          "
+
+      - name: Run end-to-end test
+        run: |
+          # Find WasmEdge library in build output
+          WASMEDGE_DIR=$(find target/release/build -path "*/wasmedge-sys-*/out/standalone/*/lib" -type d | head -1)
+          export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+
+          ./target/release/voice-actions \
+            --input audio/sample.wav \
+            --output output.mp3 \
+            --asr-model ./models/Qwen3-ASR-0.6B \
+            --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+            --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+
+          # Verify output exists and is non-empty
+          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -c%s output.mp3) bytes)"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: example-wasm
-          path: example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+          name: e2e-linux-x86_64
+          path: |
+            audio/sample.wav
+            output.mp3
+            target/release/voice-actions
+            example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
   # ---------------------------------------------------------------------------
   # Linux ARM64 — tch-backend (libtorch CPU), FFmpeg built from source
@@ -122,11 +157,50 @@ jobs:
           RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo test --release --features build-ffmpeg
 
-      - name: Upload binary
+      # -------------------------------------------------------------------
+      # End-to-end test
+      # -------------------------------------------------------------------
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
+
+      - name: Download models
+        run: |
+          huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
+          huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+
+      - name: Generate tokenizer.json
+        run: |
+          python3 -c "
+          from transformers import AutoTokenizer
+          for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
+              path = f'models/{model}'
+              tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+              tok.backend_tokenizer.save(f'{path}/tokenizer.json')
+          "
+
+      - name: Run end-to-end test
+        run: |
+          WASMEDGE_DIR=$(find target/release/build -path "*/wasmedge-sys-*/out/standalone/*/lib" -type d | head -1)
+          export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+
+          ./target/release/voice-actions \
+            --input audio/sample.wav \
+            --output output.mp3 \
+            --asr-model ./models/Qwen3-ASR-0.6B \
+            --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+            --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+
+          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -c%s output.mp3) bytes)"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: voice-actions-linux-aarch64
-          path: target/release/voice-actions
+          name: e2e-linux-aarch64
+          path: |
+            audio/sample.wav
+            output.mp3
+            target/release/voice-actions
+            example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
   # ---------------------------------------------------------------------------
   # macOS ARM64 — mlx backend (Apple Silicon Metal GPU), FFmpeg built from source
@@ -169,11 +243,50 @@ jobs:
           LIBRARY_PATH: "/opt/homebrew/lib"
         run: cargo test --release --no-default-features --features mlx,build-ffmpeg
 
-      - name: Upload binary
+      # -------------------------------------------------------------------
+      # End-to-end test
+      # -------------------------------------------------------------------
+      - name: Install Python dependencies
+        run: pip3 install huggingface_hub transformers
+
+      - name: Download models
+        run: |
+          huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
+          huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+
+      - name: Generate tokenizer.json
+        run: |
+          python3 -c "
+          from transformers import AutoTokenizer
+          for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
+              path = f'models/{model}'
+              tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+              tok.backend_tokenizer.save(f'{path}/tokenizer.json')
+          "
+
+      - name: Run end-to-end test
+        run: |
+          WASMEDGE_DIR=$(find target/release/build -path "*/wasmedge-sys-*/out/standalone/*/lib" -type d | head -1)
+          export DYLD_LIBRARY_PATH="${WASMEDGE_DIR}:${DYLD_LIBRARY_PATH}"
+
+          ./target/release/voice-actions \
+            --input audio/sample.wav \
+            --output output.mp3 \
+            --asr-model ./models/Qwen3-ASR-0.6B \
+            --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+            --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+
+          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -f%z output.mp3) bytes)"
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: voice-actions-macos-arm64
-          path: target/release/voice-actions
+          name: e2e-macos-arm64
+          path: |
+            audio/sample.wav
+            output.mp3
+            target/release/voice-actions
+            example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
   # ---------------------------------------------------------------------------
   # Lint & format (fast, no heavy deps needed — check only)

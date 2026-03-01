@@ -3,3 +3,4 @@
 example_wasm/target/
 *.wav
 *.mp3
+!audio/sample.wav
