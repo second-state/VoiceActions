@@ -119,6 +119,27 @@ jobs:
           # Verify output exists and is non-empty
           test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
 
+      - name: Run end-to-end test (LLM WASM)
+        if: env.OPENAI_API_KEY != ''
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
+          if [ -n "$WASMEDGE_LIB" ]; then
+            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
+            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+          fi
+
+          ./target/release/voice-actions \
+            --input audio/sample.wav \
+            --output output_llm.wav \
+            --asr-model ./models/Qwen3-ASR-0.6B \
+            --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+            --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm \
+            --wasm wasm/llm/target/wasm32-wasip1/release/llm.wasm
+
+          test -s output_llm.wav && echo "E2E LLM test passed: output_llm.wav created ($(stat -c%s output_llm.wav) bytes)"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -233,6 +254,27 @@ jobs:
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
           test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
+
+      - name: Run end-to-end test (LLM WASM)
+        if: env.OPENAI_API_KEY != ''
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
+          if [ -n "$WASMEDGE_LIB" ]; then
+            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
+            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+          fi
+
+          ./target/release/voice-actions \
+            --input audio/sample.wav \
+            --output output_llm.wav \
+            --asr-model ./models/Qwen3-ASR-0.6B \
+            --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+            --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm \
+            --wasm wasm/llm/target/wasm32-wasip1/release/llm.wasm
+
+          test -s output_llm.wav && echo "E2E LLM test passed: output_llm.wav created ($(stat -c%s output_llm.wav) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
