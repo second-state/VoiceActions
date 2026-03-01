@@ -59,9 +59,7 @@ fn main() -> Result<()> {
     // --- Step 1: ASR – transcribe audio to text ---
     tracing::info!("Transcribing audio: {}", cli.input.display());
     let transcribed_text = asr::transcribe(
-        cli.asr_model
-            .to_str()
-            .context("invalid ASR model path")?,
+        cli.asr_model.to_str().context("invalid ASR model path")?,
         cli.input.to_str().context("invalid input path")?,
         cli.language.as_deref(),
     )
@@ -91,20 +89,21 @@ fn main() -> Result<()> {
     tracing::info!("Synthesizing speech");
     let tts_language = cli.language.as_deref().unwrap_or("en");
     let (samples, sample_rate) = tts::synthesize(
-        cli.tts_model
-            .to_str()
-            .context("invalid TTS model path")?,
+        cli.tts_model.to_str().context("invalid TTS model path")?,
         &processed_text,
         &cli.speaker,
         tts_language,
     )
     .context("TTS synthesis failed")?;
-    tracing::info!("TTS produced {} samples at {}Hz", samples.len(), sample_rate);
+    tracing::info!(
+        "TTS produced {} samples at {}Hz",
+        samples.len(),
+        sample_rate
+    );
 
     // --- Step 4: Encode samples to MP3 ---
     tracing::info!("Encoding MP3: {}", cli.output.display());
-    audio::encode_mp3(&samples, sample_rate, &cli.output)
-        .context("MP3 encoding failed")?;
+    audio::encode_mp3(&samples, sample_rate, &cli.output).context("MP3 encoding failed")?;
 
     tracing::info!("Done! Output: {}", cli.output.display());
     Ok(())

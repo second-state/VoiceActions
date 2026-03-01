@@ -9,19 +9,19 @@ pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Resul
     ffmpeg_next::init().context("failed to initialize ffmpeg")?;
 
     // Find MP3 encoder
-    let codec = ffmpeg_next::encoder::find_by_name("libmp3lame")
-        .context("MP3 encoder (libmp3lame) not found — is ffmpeg built with --enable-libmp3lame?")?;
+    let codec = ffmpeg_next::encoder::find_by_name("libmp3lame").context(
+        "MP3 encoder (libmp3lame) not found — is ffmpeg built with --enable-libmp3lame?",
+    )?;
 
     // Create output format context
-    let mut octx = ffmpeg_next::format::output(output_mp3)
-        .context("failed to create MP3 output context")?;
+    let mut octx =
+        ffmpeg_next::format::output(output_mp3).context("failed to create MP3 output context")?;
 
     // Create encoder context from codec, configure, then add stream
     let mut encoder = {
         // Determine encoder's preferred sample format (fallback to i16 packed)
-        let default_sample_fmt = ffmpeg_next::format::Sample::I16(
-            ffmpeg_next::format::sample::Type::Packed,
-        );
+        let default_sample_fmt =
+            ffmpeg_next::format::Sample::I16(ffmpeg_next::format::sample::Type::Packed);
         let enc_sample_format = codec
             .audio()
             .ok()

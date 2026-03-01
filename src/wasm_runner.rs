@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use wasmedge_sdk::vm::SyncInst;
 use wasmedge_sdk::wasi::WasiModule;
-use wasmedge_sdk::{params, Module, Store, Vm, WasmVal};
 use wasmedge_sdk::AsInstance;
+use wasmedge_sdk::{params, Module, Store, Vm, WasmVal};
 
 /// Run a chain of WASM modules, piping text through each module's `process()` function.
 ///
@@ -106,9 +106,7 @@ fn run_single_wasm(wasm_path: &str, input: &str) -> Result<String> {
     }
 
     // Step 4: Read result string from the module's memory
-    let instance = vm
-        .active_module()
-        .context("no active module instance")?;
+    let instance = vm.active_module().context("no active module instance")?;
     let memory = instance
         .get_memory_ref("memory")
         .map_err(|e| anyhow::anyhow!("{e}"))

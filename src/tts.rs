@@ -16,8 +16,7 @@ pub fn synthesize(
     qwen3_tts::backend::mlx::stream::init_mlx(true);
 
     tracing::info!("Loading TTS model from: {model_dir}");
-    let model =
-        Qwen3TTSModel::from_pretrained(model_dir).context("failed to load TTS model")?;
+    let model = Qwen3TTSModel::from_pretrained(model_dir).context("failed to load TTS model")?;
 
     tracing::info!("Generating speech for: {text}");
     let output = model
