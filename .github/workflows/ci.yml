@@ -64,6 +64,7 @@ jobs:
         env:
           LIBTORCH: ${{ github.workspace }}/libtorch
           LIBTORCH_BYPASS_VERSION_CHECK: "1"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: cargo test --release --features build-ffmpeg
 
       # -------------------------------------------------------------------
@@ -180,6 +181,7 @@ jobs:
         env:
           LIBTORCH: ${{ github.workspace }}/libtorch
           LIBTORCH_BYPASS_VERSION_CHECK: "1"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: cargo test --release --features build-ffmpeg
 
       # -------------------------------------------------------------------
@@ -281,6 +283,7 @@ jobs:
           CFLAGS: "-I/opt/homebrew/include"
           LDFLAGS: "-L/opt/homebrew/lib"
           LIBRARY_PATH: "/opt/homebrew/lib"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: cargo test --release --no-default-features --features mlx,build-ffmpeg
 
       # -------------------------------------------------------------------

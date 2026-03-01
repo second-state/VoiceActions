@@ -123,3 +123,38 @@ fn run_single_wasm(wasm_path: &str, input: &str) -> Result<String> {
 
     String::from_utf8(result_bytes).context("WASM run() returned invalid UTF-8")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_echo_wasm() {
+        let wasm_path = "wasm/echo/target/wasm32-wasip1/release/echo.wasm";
+        if !std::path::Path::new(wasm_path).exists() {
+            eprintln!("Skipping: {wasm_path} not found (build it first)");
+            return;
+        }
+        let input = "Hello, world!";
+        let output = run_single_wasm(wasm_path, input).expect("echo module failed");
+        assert_eq!(output, input, "echo module should return input unchanged");
+        println!("echo test passed: input={input:?} output={output:?}");
+    }
+
+    #[test]
+    fn test_llm_wasm() {
+        let wasm_path = "wasm/llm/target/wasm32-wasip1/release/llm.wasm";
+        if !std::path::Path::new(wasm_path).exists() {
+            eprintln!("Skipping: {wasm_path} not found (build it first)");
+            return;
+        }
+        if std::env::var("OPENAI_API_KEY").is_err() {
+            eprintln!("Skipping: OPENAI_API_KEY not set");
+            return;
+        }
+        let input = "What is 2+2? Reply with just the number.";
+        let output = run_single_wasm(wasm_path, input).expect("llm module failed");
+        assert!(!output.is_empty(), "llm module should return non-empty response");
+        println!("llm test passed: input={input:?} output={output:?}");
+    }
+}
