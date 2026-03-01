@@ -43,30 +43,43 @@ jobs:
         run: |
           curl -Lo libtorch.zip "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcpu.zip"
           unzip -q libtorch.zip
-          echo "LIBTORCH=$PWD/libtorch" >> "$GITHUB_ENV"
-          echo "LIBTORCH_CXX11_ABI=1" >> "$GITHUB_ENV"
-          echo "LIBTORCH_BYPASS_VERSION_CHECK=1" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$PWD/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Set linker rpath-link (Linux only)
+        run: echo "RUSTFLAGS=-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib" >> "$GITHUB_ENV"
 
       - name: Build voice-actions (tch-backend, build-ffmpeg)
         env:
-          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
+          LIBTORCH: ${{ github.workspace }}/libtorch
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
         run: cargo build --release --features build-ffmpeg
 
       - name: Build example WASM module
+        env:
+          RUSTFLAGS: ""
         run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
 
       - name: Run tests
         env:
-          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
+          LIBTORCH: ${{ github.workspace }}/libtorch
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
         run: cargo test --release --features build-ffmpeg
 
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
+
+      - name: Set library path
+        run: echo "LD_LIBRARY_PATH=${{ github.workspace }}/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
       - name: Download models
         run: |
-          python3 -m pip install huggingface_hub transformers
           python3 -c "
           from huggingface_hub import snapshot_download
           snapshot_download('Qwen/Qwen3-ASR-0.6B', local_dir='models/Qwen3-ASR-0.6B')
@@ -85,7 +98,7 @@ jobs:
 
       - name: Run end-to-end test
         run: |
-          # Find WasmEdge shared library in build output and add its directory to LD_LIBRARY_PATH
+          # Find WasmEdge shared library in build output
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
             WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
@@ -144,30 +157,43 @@ jobs:
         run: |
           curl -Lo libtorch.tar.gz "https://github.com/second-state/libtorch-releases/releases/download/v2.7.1/libtorch-cxx11-abi-aarch64-2.7.1.tar.gz"
           tar xzf libtorch.tar.gz
-          echo "LIBTORCH=$PWD/libtorch" >> "$GITHUB_ENV"
-          echo "LIBTORCH_CXX11_ABI=1" >> "$GITHUB_ENV"
-          echo "LIBTORCH_BYPASS_VERSION_CHECK=1" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$PWD/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Set linker rpath-link (Linux only)
+        run: echo "RUSTFLAGS=-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib" >> "$GITHUB_ENV"
 
       - name: Build voice-actions (tch-backend, build-ffmpeg)
         env:
-          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
+          LIBTORCH: ${{ github.workspace }}/libtorch
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
         run: cargo build --release --features build-ffmpeg
 
       - name: Build example WASM module
+        env:
+          RUSTFLAGS: ""
         run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
 
       - name: Run tests
         env:
-          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
+          LIBTORCH: ${{ github.workspace }}/libtorch
+          LIBTORCH_BYPASS_VERSION_CHECK: "1"
         run: cargo test --release --features build-ffmpeg
 
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
+
+      - name: Set library path
+        run: echo "LD_LIBRARY_PATH=${{ github.workspace }}/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
       - name: Download models
         run: |
-          python3 -m pip install huggingface_hub transformers
           python3 -c "
           from huggingface_hub import snapshot_download
           snapshot_download('Qwen/Qwen3-ASR-0.6B', local_dir='models/Qwen3-ASR-0.6B')
@@ -256,9 +282,16 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install huggingface_hub transformers
+
       - name: Download models
         run: |
-          python3 -m pip install --break-system-packages huggingface_hub transformers
           python3 -c "
           from huggingface_hub import snapshot_download
           snapshot_download('Qwen/Qwen3-ASR-0.6B', local_dir='models/Qwen3-ASR-0.6B')
