@@ -23,10 +23,6 @@ jobs:
         with:
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: linux-x86-tch
-
       # Build toolchain for ffmpeg-next build feature + codec libraries
       - name: Install build dependencies
         run: |
@@ -163,10 +159,6 @@ jobs:
         with:
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: linux-arm-tch
-
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -301,10 +293,6 @@ jobs:
         with:
           targets: wasm32-wasip1
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: macos-mlx
-
       # cmake needed for mlx backend build; nasm for ffmpeg build; opus/lame for codecs
       - name: Install build dependencies
         run: |
@@ -315,7 +303,9 @@ jobs:
           CFLAGS: "-I/opt/homebrew/include"
           LDFLAGS: "-L/opt/homebrew/lib"
           LIBRARY_PATH: "/opt/homebrew/lib"
-        run: cargo build --release --no-default-features --features mlx,build-ffmpeg
+        run: |
+          cargo clean
+          cargo build --release --no-default-features --features mlx,build-ffmpeg
 
       - name: Build WASM modules
         run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
