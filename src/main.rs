@@ -25,7 +25,7 @@ struct Cli {
     #[arg(short, long)]
     input: PathBuf,
 
-    /// Path to the output MP3 file
+    /// Path to the output audio file (WAV)
     #[arg(short, long)]
     output: PathBuf,
 
@@ -81,9 +81,10 @@ fn main() -> Result<()> {
         "Running WASM processing chain ({} module(s))",
         wasm_paths.len()
     );
+    println!("WASM input:  {transcribed_text}");
     let processed_text = wasm_runner::run_wasm_chain(&wasm_paths, &transcribed_text)
         .context("WASM processing chain failed")?;
-    tracing::info!("Processed text: {processed_text}");
+    println!("WASM output: {processed_text}");
 
     // --- Step 3: TTS – synthesize speech from processed text ---
     tracing::info!("Synthesizing speech");
@@ -101,9 +102,9 @@ fn main() -> Result<()> {
         sample_rate
     );
 
-    // --- Step 4: Encode samples to MP3 ---
-    tracing::info!("Encoding MP3: {}", cli.output.display());
-    audio::encode_mp3(&samples, sample_rate, &cli.output).context("MP3 encoding failed")?;
+    // --- Step 4: Write samples to WAV ---
+    tracing::info!("Writing WAV: {}", cli.output.display());
+    audio::write_wav(&samples, sample_rate, &cli.output).context("WAV encoding failed")?;
 
     tracing::info!("Done! Output: {}", cli.output.display());
     Ok(())

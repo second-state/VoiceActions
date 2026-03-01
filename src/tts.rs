@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use qwen3_tts::Qwen3TTSModel;
+use qwen3_tts::inference::TTSInference;
+use qwen3_tts::tensor::Device;
+use std::path::Path;
 
 /// Synthesize speech from text using Qwen3-TTS.
 ///
@@ -16,15 +18,18 @@ pub fn synthesize(
     qwen3_tts::backend::mlx::stream::init_mlx(true);
 
     tracing::info!("Loading TTS model from: {model_dir}");
-    let model = Qwen3TTSModel::from_pretrained(model_dir).context("failed to load TTS model")?;
+    let inference =
+        TTSInference::new(Path::new(model_dir), Device::Cpu).context("failed to load TTS model")?;
 
     tracing::info!("Generating speech for: {text}");
-    let output = model
-        .generate_custom_voice(text, speaker, language, None::<&str>, None)
+    let (samples, sample_rate) = inference
+        .generate_with_instruct(
+            text, speaker, language, "",   // no instruction
+            0.9,  // temperature
+            50,   // top_k
+            2048, // max_codes
+        )
         .context("TTS generation failed")?;
-
-    let samples = output.waveform().context("empty waveform output")?;
-    let sample_rate = output.sample_rate;
 
     tracing::info!(
         "TTS generated {} samples at {}Hz",
@@ -32,5 +37,5 @@ pub fn synthesize(
         sample_rate
     );
 
-    Ok((samples.to_vec(), sample_rate))
+    Ok((samples, sample_rate))
 }

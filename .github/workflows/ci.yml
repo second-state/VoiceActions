@@ -108,13 +108,13 @@ jobs:
 
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output.mp3 \
+            --output output.wav \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
           # Verify output exists and is non-empty
-          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -c%s output.mp3) bytes)"
+          test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -122,7 +122,7 @@ jobs:
           name: e2e-linux-x86_64
           path: |
             audio/sample.wav
-            output.mp3
+            output.wav
             target/release/voice-actions
             example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
@@ -221,12 +221,12 @@ jobs:
 
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output.mp3 \
+            --output output.wav \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
-          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -c%s output.mp3) bytes)"
+          test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -234,7 +234,7 @@ jobs:
           name: e2e-linux-aarch64
           path: |
             audio/sample.wav
-            output.mp3
+            output.wav
             target/release/voice-actions
             example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
@@ -319,12 +319,12 @@ jobs:
 
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output.mp3 \
+            --output output.wav \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 
-          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -f%z output.mp3) bytes)"
+          test -s output.wav && echo "E2E test passed: output.wav created ($(stat -f%z output.wav) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -332,7 +332,7 @@ jobs:
           name: e2e-macos-arm64
           path: |
             audio/sample.wav
-            output.mp3
+            output.wav
             target/release/voice-actions
             example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
 

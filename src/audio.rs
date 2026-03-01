@@ -1,5 +1,54 @@
 use anyhow::{bail, Context, Result};
+use std::io::Write;
 use std::path::Path;
+
+/// Write raw f32 audio samples to a WAV file (16-bit PCM, mono).
+#[allow(dead_code)]
+pub fn write_wav(samples: &[f32], sample_rate: u32, output_path: &Path) -> Result<()> {
+    let num_samples = samples.len() as u32;
+    let bytes_per_sample: u16 = 2; // 16-bit
+    let num_channels: u16 = 1;
+    let data_size = num_samples * bytes_per_sample as u32;
+    let file_size = 36 + data_size; // 44 byte header - 8 byte RIFF header
+
+    let mut file =
+        std::fs::File::create(output_path).context("failed to create WAV output file")?;
+
+    // RIFF header
+    file.write_all(b"RIFF")?;
+    file.write_all(&file_size.to_le_bytes())?;
+    file.write_all(b"WAVE")?;
+
+    // fmt chunk
+    file.write_all(b"fmt ")?;
+    file.write_all(&16u32.to_le_bytes())?; // chunk size
+    file.write_all(&1u16.to_le_bytes())?; // PCM format
+    file.write_all(&num_channels.to_le_bytes())?;
+    file.write_all(&sample_rate.to_le_bytes())?;
+    let byte_rate = sample_rate * num_channels as u32 * bytes_per_sample as u32;
+    file.write_all(&byte_rate.to_le_bytes())?;
+    let block_align = num_channels * bytes_per_sample;
+    file.write_all(&block_align.to_le_bytes())?;
+    file.write_all(&(bytes_per_sample * 8).to_le_bytes())?; // bits per sample
+
+    // data chunk
+    file.write_all(b"data")?;
+    file.write_all(&data_size.to_le_bytes())?;
+
+    // Convert f32 samples to i16 and write
+    for &s in samples {
+        let clamped = s.clamp(-1.0, 1.0);
+        let i16_val = (clamped * 32767.0) as i16;
+        file.write_all(&i16_val.to_le_bytes())?;
+    }
+
+    if !output_path.exists() {
+        bail!("WAV output file was not created");
+    }
+
+    tracing::info!("WAV written to: {}", output_path.display());
+    Ok(())
+}
 
 /// Encode raw f32 audio samples to an MP3 file using ffmpeg-next (libmp3lame).
 ///
