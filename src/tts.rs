@@ -24,10 +24,7 @@ pub fn synthesize(
     tracing::info!("Generating speech for: {text}");
     let (samples, sample_rate) = inference
         .generate_with_instruct(
-            text,
-            speaker,
-            language,
-            "",   // no instruction
+            text, speaker, language, "",   // no instruction
             0.9,  // temperature
             50,   // top_k
             2048, // max_codes
