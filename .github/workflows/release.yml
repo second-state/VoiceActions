@@ -94,10 +94,6 @@ jobs:
             tar xzf ${{ matrix.libtorch-archive }}
           fi
 
-      - name: Set linker rpath-link (Linux)
-        if: matrix.backend == 'tch' && runner.os == 'Linux'
-        run: echo "RUSTFLAGS=-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib" >> "$GITHUB_ENV"
-
       # -----------------------------------------------------------------------
       # macOS build dependencies
       # -----------------------------------------------------------------------
@@ -113,6 +109,7 @@ jobs:
         env:
           LIBTORCH: ${{ github.workspace }}/libtorch
           LIBTORCH_BYPASS_VERSION_CHECK: "1"
+          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo build --release --features build-ffmpeg
 
       - name: Build (mlx)

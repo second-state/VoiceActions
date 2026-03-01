@@ -47,15 +47,18 @@ jobs:
           echo "LIBTORCH_CXX11_ABI=1" >> "$GITHUB_ENV"
           echo "LIBTORCH_BYPASS_VERSION_CHECK=1" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$PWD/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          echo "RUSTFLAGS=-C link-arg=-Wl,-rpath-link,$PWD/libtorch/lib" >> "$GITHUB_ENV"
 
       - name: Build voice-actions (tch-backend, build-ffmpeg)
+        env:
+          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo build --release --features build-ffmpeg
 
       - name: Build example WASM module
         run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
 
       - name: Run tests
+        env:
+          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo test --release --features build-ffmpeg
 
       - name: Upload binary
@@ -105,15 +108,18 @@ jobs:
           echo "LIBTORCH_CXX11_ABI=1" >> "$GITHUB_ENV"
           echo "LIBTORCH_BYPASS_VERSION_CHECK=1" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$PWD/libtorch/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          echo "RUSTFLAGS=-C link-arg=-Wl,-rpath-link,$PWD/libtorch/lib" >> "$GITHUB_ENV"
 
       - name: Build voice-actions (tch-backend, build-ffmpeg)
+        env:
+          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo build --release --features build-ffmpeg
 
       - name: Build example WASM module
         run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
 
       - name: Run tests
+        env:
+          RUSTFLAGS: "-C link-arg=-Wl,-rpath-link,${{ github.workspace }}/libtorch/lib"
         run: cargo test --release --features build-ffmpeg
 
       - name: Upload binary
