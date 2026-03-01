@@ -81,9 +81,10 @@ fn main() -> Result<()> {
         "Running WASM processing chain ({} module(s))",
         wasm_paths.len()
     );
+    println!("WASM input:  {transcribed_text}");
     let processed_text = wasm_runner::run_wasm_chain(&wasm_paths, &transcribed_text)
         .context("WASM processing chain failed")?;
-    tracing::info!("Processed text: {processed_text}");
+    println!("WASM output: {processed_text}");
 
     // --- Step 3: TTS – synthesize speech from processed text ---
     tracing::info!("Synthesizing speech");
