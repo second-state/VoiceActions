@@ -13,18 +13,34 @@ pub fn synthesize(
     speaker: &str,
     language: &str,
 ) -> Result<(Vec<f32>, u32)> {
-    // Initialize MLX backend if using Apple Silicon
+    // Determine device based on backend — matches qwen3_audio_api approach
     #[cfg(feature = "mlx")]
-    qwen3_tts::backend::mlx::stream::init_mlx(true);
+    let device = {
+        qwen3_tts::backend::mlx::stream::init_mlx(true);
+        tracing::info!("TTS using MLX Metal GPU");
+        Device::Gpu(0)
+    };
+
+    #[cfg(feature = "tch-backend")]
+    let device = {
+        if tch::Cuda::is_available() {
+            tracing::info!("TTS using CUDA GPU");
+            Device::Gpu(0)
+        } else {
+            tracing::info!("TTS using CPU");
+            Device::Cpu
+        }
+    };
 
     tracing::info!("Loading TTS model from: {model_dir}");
     let inference =
-        TTSInference::new(Path::new(model_dir), Device::Cpu).context("failed to load TTS model")?;
+        TTSInference::new(Path::new(model_dir), device).context("failed to load TTS model")?;
 
     tracing::info!("Generating speech for: {text}");
     let (samples, sample_rate) = inference
-        .generate_with_params(
-            text, speaker, language, 0.9,  // temperature
+        .generate_with_instruct(
+            text, speaker, language, "",   // instruction (empty for basic generation)
+            0.9,  // temperature
             50,   // top_k
             2048, // max_codes
         )
