@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::Path;
 
 /// Write raw f32 audio samples to a WAV file (16-bit PCM, mono).
+#[allow(dead_code)]
 pub fn write_wav(samples: &[f32], sample_rate: u32, output_path: &Path) -> Result<()> {
     let num_samples = samples.len() as u32;
     let bytes_per_sample: u16 = 2; // 16-bit
