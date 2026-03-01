@@ -41,12 +41,23 @@ async fn call_openai(input: &str) -> String {
         .await
         .expect("failed to send request to OpenAI");
 
-    let body = resp
-        .json::<ChatResponse>()
-        .await
-        .expect("failed to parse OpenAI response");
+    let text = resp.text().await.expect("failed to read OpenAI response");
 
-    body.choices
+    let body: serde_json::Value =
+        serde_json::from_str(&text).expect("failed to parse OpenAI response JSON");
+
+    if let Some(err) = body.get("error") {
+        let msg = err
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("unknown error");
+        return format!("OpenAI API error: {msg}");
+    }
+
+    let resp: ChatResponse =
+        serde_json::from_value(body).expect("unexpected OpenAI response format");
+
+    resp.choices
         .into_iter()
         .next()
         .map(|c| c.message.content)

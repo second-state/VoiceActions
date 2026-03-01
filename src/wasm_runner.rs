@@ -154,7 +154,14 @@ mod tests {
         }
         let input = "What is 2+2? Reply with just the number.";
         let output = run_single_wasm(wasm_path, input).expect("llm module failed");
-        assert!(!output.is_empty(), "llm module should return non-empty response");
+        assert!(
+            !output.is_empty(),
+            "llm module should return non-empty response"
+        );
+        assert!(
+            !output.starts_with("OpenAI API error:"),
+            "OpenAI API returned error: {output}"
+        );
         println!("llm test passed: input={input:?} output={output:?}");
     }
 }
