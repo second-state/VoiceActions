@@ -25,7 +25,7 @@ struct Cli {
     #[arg(short, long)]
     input: PathBuf,
 
-    /// Path to the output MP3 file
+    /// Path to the output audio file (WAV)
     #[arg(short, long)]
     output: PathBuf,
 
@@ -102,9 +102,9 @@ fn main() -> Result<()> {
         sample_rate
     );
 
-    // --- Step 4: Encode samples to MP3 ---
-    tracing::info!("Encoding MP3: {}", cli.output.display());
-    audio::encode_mp3(&samples, sample_rate, &cli.output).context("MP3 encoding failed")?;
+    // --- Step 4: Write samples to WAV ---
+    tracing::info!("Writing WAV: {}", cli.output.display());
+    audio::write_wav(&samples, sample_rate, &cli.output).context("WAV encoding failed")?;
 
     tracing::info!("Done! Output: {}", cli.output.display());
     Ok(())
