@@ -64,16 +64,21 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Install Python dependencies
-        run: pip install huggingface_hub transformers
+      - name: Set up Python venv and install dependencies
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install huggingface_hub transformers
 
       - name: Download models
         run: |
+          source .venv/bin/activate
           huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
           huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
 
       - name: Generate tokenizer.json
         run: |
+          source .venv/bin/activate
           python3 -c "
           from transformers import AutoTokenizer
           for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
@@ -160,16 +165,21 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Install Python dependencies
-        run: pip install huggingface_hub transformers
+      - name: Set up Python venv and install dependencies
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install huggingface_hub transformers
 
       - name: Download models
         run: |
+          source .venv/bin/activate
           huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
           huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
 
       - name: Generate tokenizer.json
         run: |
+          source .venv/bin/activate
           python3 -c "
           from transformers import AutoTokenizer
           for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
@@ -246,16 +256,21 @@ jobs:
       # -------------------------------------------------------------------
       # End-to-end test
       # -------------------------------------------------------------------
-      - name: Install Python dependencies
-        run: pip3 install huggingface_hub transformers
+      - name: Set up Python venv and install dependencies
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install huggingface_hub transformers
 
       - name: Download models
         run: |
+          source .venv/bin/activate
           huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
           huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
 
       - name: Generate tokenizer.json
         run: |
+          source .venv/bin/activate
           python3 -c "
           from transformers import AutoTokenizer
           for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
