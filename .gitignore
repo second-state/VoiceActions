@@ -1,6 +1,6 @@
 /target
 /models/
-example_wasm/target/
+wasm/*/target/
 *.wav
 *.mp3
 !audio/sample.wav

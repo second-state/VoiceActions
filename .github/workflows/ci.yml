@@ -53,10 +53,10 @@ jobs:
           LIBTORCH_BYPASS_VERSION_CHECK: "1"
         run: cargo build --release --features build-ffmpeg
 
-      - name: Build example WASM module
+      - name: Build WASM modules
         env:
           RUSTFLAGS: ""
-        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
 
       - name: Run tests
         env:
@@ -111,7 +111,7 @@ jobs:
             --output output.wav \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
-            --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+            --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
           # Verify output exists and is non-empty
           test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
@@ -124,7 +124,7 @@ jobs:
             audio/sample.wav
             output.wav
             target/release/voice-actions
-            example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+            wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
   # ---------------------------------------------------------------------------
   # Linux ARM64 — tch-backend (libtorch CPU), FFmpeg built from source
@@ -167,10 +167,10 @@ jobs:
           LIBTORCH_BYPASS_VERSION_CHECK: "1"
         run: cargo build --release --features build-ffmpeg
 
-      - name: Build example WASM module
+      - name: Build WASM modules
         env:
           RUSTFLAGS: ""
-        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
 
       - name: Run tests
         env:
@@ -224,7 +224,7 @@ jobs:
             --output output.wav \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
-            --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+            --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
           test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
 
@@ -236,7 +236,7 @@ jobs:
             audio/sample.wav
             output.wav
             target/release/voice-actions
-            example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+            wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
   # ---------------------------------------------------------------------------
   # macOS ARM64 — mlx backend (Apple Silicon Metal GPU), FFmpeg built from source
@@ -269,8 +269,8 @@ jobs:
           LIBRARY_PATH: "/opt/homebrew/lib"
         run: cargo build --release --no-default-features --features mlx,build-ffmpeg
 
-      - name: Build example WASM module
-        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+      - name: Build WASM modules
+        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
 
       - name: Run tests
         env:
@@ -322,7 +322,7 @@ jobs:
             --output output.wav \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
-            --wasm example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+            --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
           test -s output.wav && echo "E2E test passed: output.wav created ($(stat -f%z output.wav) bytes)"
 
@@ -334,7 +334,7 @@ jobs:
             audio/sample.wav
             output.wav
             target/release/voice-actions
-            example_wasm/target/wasm32-wasip1/release/example_wasm.wasm
+            wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
   # ---------------------------------------------------------------------------
   # Lint & format (fast, no heavy deps needed — check only)
@@ -353,5 +353,5 @@ jobs:
       - name: Check formatting
         run: cargo fmt -- --check
 
-      - name: Check example_wasm formatting
-        run: cargo fmt --manifest-path example_wasm/Cargo.toml -- --check
+      - name: Check WASM modules formatting
+        run: cargo fmt --manifest-path wasm/echo/Cargo.toml -- --check
