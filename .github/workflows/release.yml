@@ -56,16 +56,6 @@ jobs:
         with:
           targets: wasm32-wasip1
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.backend }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-${{ matrix.backend }}-cargo-registry-
-
       # -----------------------------------------------------------------------
       # Linux build dependencies
       # -----------------------------------------------------------------------
@@ -120,8 +110,8 @@ jobs:
           LIBRARY_PATH: "/opt/homebrew/lib"
         run: cargo build --release --no-default-features --features mlx,build-ffmpeg
 
-      - name: Build example WASM module
-        run: cargo build --target wasm32-wasip1 --release --manifest-path example_wasm/Cargo.toml
+      - name: Build echo WASM module
+        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
 
       # -----------------------------------------------------------------------
       # Package
@@ -135,8 +125,8 @@ jobs:
           # Binary
           cp "$BINARY" ${{ matrix.asset-name }}/
 
-          # Example WASM module
-          cp example_wasm/target/wasm32-wasip1/release/example_wasm.wasm ${{ matrix.asset-name }}/
+          # Echo WASM module
+          cp wasm/echo/target/wasm32-wasip1/release/echo.wasm ${{ matrix.asset-name }}/
 
           # libtorch runtime
           cp -r libtorch ${{ matrix.asset-name }}/
@@ -175,8 +165,8 @@ jobs:
           BINARY=target/release/voice-actions
           mkdir -p ${{ matrix.asset-name }}/lib
 
-          # Example WASM module
-          cp example_wasm/target/wasm32-wasip1/release/example_wasm.wasm ${{ matrix.asset-name }}/
+          # Echo WASM module
+          cp wasm/echo/target/wasm32-wasip1/release/echo.wasm ${{ matrix.asset-name }}/
 
           # MLX Metal GPU kernels
           find target/release/build -name "mlx.metallib" -exec cp {} ${{ matrix.asset-name }}/ \; 2>/dev/null

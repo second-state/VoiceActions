@@ -16,16 +16,49 @@ Audio Input → ASR (Qwen3) → WASM chain → TTS (Qwen3) → MP3 Output
 
 ## Quick Start
 
+Download the latest release archive for your platform from
+[GitHub Releases](https://github.com/second-state/VoiceActions/releases)
+and extract it:
+
 ```bash
-voice-actions \
+# Linux
+tar xzf voice-actions-linux-x86_64.tar.gz
+cd voice-actions-linux-x86_64
+
+# macOS
+# unzip voice-actions-macos-aarch64.zip && cd voice-actions-macos-aarch64
+```
+
+Download the required models and generate `tokenizer.json`:
+
+```bash
+pip install huggingface_hub transformers
+
+huggingface-cli download Qwen/Qwen3-ASR-0.6B --local-dir models/Qwen3-ASR-0.6B
+huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice --local-dir models/Qwen3-TTS-12Hz-0.6B-CustomVoice
+
+python3 -c "
+from transformers import AutoTokenizer
+for model in ['Qwen3-ASR-0.6B', 'Qwen3-TTS-12Hz-0.6B-CustomVoice']:
+    path = f'models/{model}'
+    tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+    tok.backend_tokenizer.save(f'{path}/tokenizer.json')
+"
+```
+
+Run with the bundled `echo.wasm` module (passes text through unchanged):
+
+```bash
+./voice-actions \
   --input recording.mp3 \
   --output response.mp3 \
   --asr-model ./models/Qwen3-ASR-0.6B \
   --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
-  --wasm processor.wasm \
-  --language en \
-  --speaker Vivian
+  --wasm echo.wasm
 ```
+
+All required shared libraries (WasmEdge, libopus, libmp3lame) are bundled in the
+release archive — no additional installation needed.
 
 ## CLI Reference
 
@@ -228,11 +261,10 @@ cargo build --target wasm32-wasip1 --release
 
 The output `.wasm` file will be at `target/wasm32-wasip1/release/<name>.wasm`.
 
-A complete working example is in the [`example_wasm/`](example_wasm/) directory:
+A complete working example is in the [`wasm/echo/`](wasm/echo/) directory:
 
 ```bash
-cd example_wasm
-cargo build --target wasm32-wasip1 --release
+cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
 ```
 
 ### WASM Module Capabilities
@@ -250,15 +282,16 @@ Since modules target `wasm32-wasip1` and run on WasmEdge, they can:
 ```
 VoiceActions/
 ├── Cargo.toml                          # Root manifest with feature flags
+├── build.rs                            # Sets rpath for bundled shared libraries
 ├── src/
 │   ├── main.rs                         # CLI entry point and pipeline orchestration
 │   ├── asr.rs                          # Qwen3-ASR wrapper (speech-to-text)
 │   ├── tts.rs                          # Qwen3-TTS wrapper (text-to-speech)
 │   ├── wasm_runner.rs                  # WasmEdge WASM loading and process() calling
 │   └── audio.rs                        # FFmpeg MP3 encoding (raw samples → MP3)
-├── example_wasm/
-│   ├── Cargo.toml                      # Example WASM module manifest
-│   └── src/lib.rs                      # Example: uppercase text transformation
+├── wasm/
+│   ├── echo/                           # Echo module — passes text through unchanged
+│   └── llm/                            # LLM module — calls OpenAI-compatible APIs
 ├── models/                             # Model directories (git-ignored)
 │   ├── Qwen3-ASR-0.6B/
 │   ├── Qwen3-TTS-12Hz-0.6B-Base/
@@ -278,7 +311,7 @@ Runs on every push to `main` and on pull requests. Four jobs:
 |---|---|---|---|
 | Linux x86_64 (tch-backend) | `ubuntu-latest` | tch | Downloads libtorch CPU, builds with `build-ffmpeg`, runs tests |
 | Linux ARM64 (tch-backend) | `ubuntu-24.04-arm` | tch | Downloads libtorch ARM64, builds with `build-ffmpeg`, runs tests |
-| macOS ARM64 (mlx) | `macos-14` | mlx | Builds with MLX + `build-ffmpeg`, runs tests |
+| macOS ARM64 (mlx) | `macos-latest` | mlx | Builds with MLX + `build-ffmpeg`, runs tests |
 | Lint & Format | `ubuntu-latest` | — | `cargo fmt --check` on all crates |
 
 ### Release (`release.yml`)
@@ -287,10 +320,10 @@ Triggered when a GitHub release is published. Builds 4 platform variants and upl
 
 | Asset | Backend | Archive | Contents |
 |---|---|---|---|
-| `voice-actions-linux-x86_64.tar.gz` | tch (CPU) | tar.gz | binary, libtorch/, lib/ (libwasmedge, libopus, libmp3lame), example WASM |
-| `voice-actions-linux-x86_64-cuda.tar.gz` | tch (CUDA 12.8) | tar.gz | binary, libtorch/ (CUDA), lib/ (libwasmedge, libopus, libmp3lame), example WASM |
-| `voice-actions-linux-aarch64.tar.gz` | tch (ARM64) | tar.gz | binary, libtorch/, lib/ (libwasmedge, libopus, libmp3lame), example WASM |
-| `voice-actions-macos-aarch64.zip` | mlx | zip | binary, mlx.metallib, lib/ (libwasmedge, libopus, libmp3lame), example WASM |
+| `voice-actions-linux-x86_64.tar.gz` | tch (CPU) | tar.gz | binary, echo.wasm, libtorch/, lib/ (libwasmedge, libopus, libmp3lame) |
+| `voice-actions-linux-x86_64-cuda.tar.gz` | tch (CUDA 12.8) | tar.gz | binary, echo.wasm, libtorch/ (CUDA), lib/ (libwasmedge, libopus, libmp3lame) |
+| `voice-actions-linux-aarch64.tar.gz` | tch (ARM64) | tar.gz | binary, echo.wasm, libtorch/, lib/ (libwasmedge, libopus, libmp3lame) |
+| `voice-actions-macos-aarch64.zip` | mlx | zip | binary, echo.wasm, mlx.metallib, lib/ (libwasmedge, libopus, libmp3lame) |
 
 ### Using a Release Archive
 
@@ -301,15 +334,14 @@ tar xzf voice-actions-linux-x86_64.tar.gz
 cd voice-actions-linux-x86_64
 
 # Bundled libs in lib/ and libtorch/ are found via RPATH ($ORIGIN/lib, $ORIGIN/libtorch/lib).
-# If you see "library not found" errors, set LD_LIBRARY_PATH as a fallback:
-#   export LD_LIBRARY_PATH=$PWD/libtorch/lib:$PWD/lib:$LD_LIBRARY_PATH
+# echo.wasm is included — use it directly or supply your own WASM modules.
 
 ./voice-actions \
   --input recording.mp3 \
   --output response.mp3 \
   --asr-model /path/to/Qwen3-ASR-0.6B \
   --tts-model /path/to/Qwen3-TTS-12Hz-0.6B-CustomVoice \
-  --wasm processor.wasm
+  --wasm echo.wasm
 ```
 
 **macOS:**
@@ -319,14 +351,14 @@ unzip voice-actions-macos-aarch64.zip
 cd voice-actions-macos-aarch64
 
 # Bundled libs in lib/ are referenced via @executable_path/lib/ — no env vars needed.
-# Ensure mlx.metallib is in the same directory as the binary.
+# echo.wasm is included — use it directly or supply your own WASM modules.
 
 ./voice-actions \
   --input recording.mp3 \
   --output response.mp3 \
   --asr-model /path/to/Qwen3-ASR-0.6B \
   --tts-model /path/to/Qwen3-TTS-12Hz-0.6B-CustomVoice \
-  --wasm processor.wasm
+  --wasm echo.wasm
 ```
 
 ## Logging
