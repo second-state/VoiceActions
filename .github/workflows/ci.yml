@@ -298,6 +298,16 @@ jobs:
         run: |
           brew install cmake nasm pkg-config opus lame
 
+      # wasi-sdk provides clang + sysroot for cross-compiling C code to wasm32-wasip1
+      # (needed by ring/rustls in the LLM WASM module)
+      - name: Install wasi-sdk
+        run: |
+          curl -Lo wasi-sdk.tar.gz "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-arm64-macos.tar.gz"
+          tar xzf wasi-sdk.tar.gz
+          echo "WASI_SDK_PATH=${{ github.workspace }}/wasi-sdk-25.0" >> "$GITHUB_ENV"
+          echo "CC_wasm32_wasip1=${{ github.workspace }}/wasi-sdk-25.0/bin/clang" >> "$GITHUB_ENV"
+          echo "CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/wasi-sdk-25.0/share/cmake/wasi-sdk.cmake" >> "$GITHUB_ENV"
+
       - name: Build voice-actions (mlx, build-ffmpeg)
         env:
           CFLAGS: "-I/opt/homebrew/include"
@@ -308,7 +318,11 @@ jobs:
           cargo build --release --no-default-features --features mlx,build-ffmpeg
 
       - name: Build WASM modules
-        run: cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
+        env:
+          RUSTFLAGS: ""
+        run: |
+          cargo build --target wasm32-wasip1 --release --manifest-path wasm/echo/Cargo.toml
+          cd wasm/llm && RUSTFLAGS="--cfg wasmedge --cfg tokio_unstable" cargo build --target wasm32-wasip1 --release
 
       - name: Run tests
         env:
@@ -364,6 +378,27 @@ jobs:
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
           test -s output.wav && echo "E2E test passed: output.wav created ($(stat -f%z output.wav) bytes)"
+
+      - name: Run end-to-end test (LLM WASM)
+        if: env.OPENAI_API_KEY != ''
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge*.dylib" -type f 2>/dev/null | head -1)
+          if [ -n "$WASMEDGE_LIB" ]; then
+            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
+            export DYLD_LIBRARY_PATH="${WASMEDGE_DIR}:${DYLD_LIBRARY_PATH}"
+          fi
+
+          ./target/release/voice-actions \
+            --input audio/sample.wav \
+            --output output_llm.wav \
+            --asr-model ./models/Qwen3-ASR-0.6B \
+            --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+            --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm \
+            --wasm wasm/llm/target/wasm32-wasip1/release/llm.wasm
+
+          test -s output_llm.wav && echo "E2E LLM test passed: output_llm.wav created ($(stat -f%z output_llm.wav) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
