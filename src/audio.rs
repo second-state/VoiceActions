@@ -51,8 +51,8 @@ pub fn write_wav(samples: &[f32], sample_rate: u32, output_path: &Path) -> Resul
 
 /// Encode raw f32 audio samples to an MP3 file using ffmpeg-next (libmp3lame).
 ///
-/// Converts f32 samples (range -1.0..1.0) to i16, processes them in
-/// encoder.frame_size() chunks, and writes the MP3 output file.
+/// Creates f32-packed source frames and uses ffmpeg's resampler to convert
+/// to the encoder's preferred sample format (typically f32 planar for libmp3lame).
 pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Result<()> {
     ffmpeg_next::init().context("failed to initialize ffmpeg")?;
 
@@ -61,60 +61,89 @@ pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Resul
         "MP3 encoder (libmp3lame) not found — is ffmpeg built with --enable-libmp3lame?",
     )?;
 
-    // Create output format context
+    // Determine encoder's preferred sample format
+    let default_sample_fmt =
+        ffmpeg_next::format::Sample::I16(ffmpeg_next::format::sample::Type::Packed);
+    let enc_sample_format = codec
+        .audio()
+        .ok()
+        .and_then(|a| a.formats())
+        .and_then(|mut f| f.next())
+        .unwrap_or(default_sample_fmt);
+
+    // Create output format context and add stream
     let mut octx =
         ffmpeg_next::format::output(output_mp3).context("failed to create MP3 output context")?;
+    let _output_stream = octx
+        .add_stream(codec)
+        .context("failed to add audio stream")?;
 
-    // Create encoder context from codec, configure, then add stream
-    let mut encoder = {
-        // Determine encoder's preferred sample format (fallback to i16 packed)
-        let default_sample_fmt =
-            ffmpeg_next::format::Sample::I16(ffmpeg_next::format::sample::Type::Packed);
-        let enc_sample_format = codec
-            .audio()
-            .ok()
-            .and_then(|a| a.formats())
-            .and_then(|mut f| f.next())
-            .unwrap_or(default_sample_fmt);
+    // Configure encoder
+    let mut context_encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec);
 
-        // Create encoder context directly from codec (stream.codec() removed in ffmpeg-next 8.0)
-        let mut encoder = ffmpeg_next::codec::context::Context::new_with_codec(codec)
-            .encoder()
-            .audio()
-            .context("failed to create audio encoder")?;
+    // Set GLOBAL_HEADER flag if the output format requires it
+    if octx
+        .format()
+        .flags()
+        .contains(ffmpeg_next::format::flag::Flags::GLOBAL_HEADER)
+    {
+        unsafe {
+            (*context_encoder.as_mut_ptr()).flags |=
+                ffmpeg_next::codec::flag::Flags::GLOBAL_HEADER.bits() as i32;
+        }
+    }
 
-        encoder.set_rate(sample_rate as i32);
-        encoder.set_channel_layout(ffmpeg_next::ChannelLayout::MONO);
-        encoder.set_format(enc_sample_format);
-        encoder.set_bit_rate(192_000);
+    let mut encoder = context_encoder
+        .encoder()
+        .audio()
+        .context("failed to create audio encoder")?;
 
-        let encoder = encoder
-            .open_as(codec)
-            .context("failed to open MP3 encoder")?;
+    encoder.set_rate(sample_rate as i32);
+    encoder.set_channel_layout(ffmpeg_next::ChannelLayout::MONO);
+    encoder.set_format(enc_sample_format);
+    encoder.set_bit_rate(192_000);
 
-        // Add stream and copy encoder parameters to it
-        let mut stream = octx
-            .add_stream(codec)
-            .context("failed to add audio stream")?;
-        stream.set_parameters(&encoder);
+    let mut encoder = encoder
+        .open_as(codec)
+        .context("failed to open MP3 encoder")?;
 
-        encoder
-    };
+    octx.stream_mut(0)
+        .context("no output stream found")?
+        .set_parameters(&encoder);
 
-    // Write file header
     octx.write_header().context("failed to write MP3 header")?;
 
     let output_stream_time_base = octx.stream(0).unwrap().time_base();
 
-    // Get encoder's frame size (576 for MP3, default to 1024 if zero)
+    // Source format: our f32 samples are packed (interleaved)
+    let src_format = ffmpeg_next::format::Sample::F32(ffmpeg_next::format::sample::Type::Packed);
+
+    // Use ffmpeg resampler to convert from f32-packed to encoder's format.
+    // This handles planar/packed conversion and any format differences correctly.
+    let s16_packed = ffmpeg_next::format::Sample::I16(ffmpeg_next::format::sample::Type::Packed);
+    let needs_resampler = enc_sample_format != s16_packed;
+
+    let mut resampler = if needs_resampler {
+        Some(
+            ffmpeg_next::software::resampling::Context::get(
+                src_format,
+                ffmpeg_next::ChannelLayout::MONO,
+                sample_rate,
+                enc_sample_format,
+                ffmpeg_next::ChannelLayout::MONO,
+                sample_rate,
+            )
+            .context("failed to create resampler")?,
+        )
+    } else {
+        None
+    };
+
     let frame_size = if encoder.frame_size() > 0 {
         encoder.frame_size() as usize
     } else {
         1024
     };
-
-    let enc_sample_format = encoder.format();
-    let enc_rate = encoder.rate();
 
     let mut pts: i64 = 0;
     let mut offset: usize = 0;
@@ -123,29 +152,57 @@ pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Resul
         let chunk_len = std::cmp::min(frame_size, samples.len() - offset);
         let chunk = &samples[offset..offset + chunk_len];
 
-        let mut frame = ffmpeg_next::frame::Audio::new(
-            enc_sample_format,
-            chunk_len,
-            ffmpeg_next::ChannelLayout::MONO,
-        );
-        frame.set_rate(enc_rate);
-        frame.set_pts(Some(pts));
+        if let Some(ref mut resampler) = resampler {
+            // Create f32-packed source frame, let resampler convert to encoder format
+            let mut frame = ffmpeg_next::frame::Audio::new(
+                src_format,
+                chunk_len,
+                ffmpeg_next::ChannelLayout::MONO,
+            );
+            frame.set_rate(sample_rate);
+            frame.set_pts(Some(pts));
 
-        // Convert f32 samples to i16 and write into frame buffer
-        let data = frame.data_mut(0);
-        for (i, &s) in chunk.iter().enumerate() {
-            let clamped = s.clamp(-1.0, 1.0);
-            let i16_val = (clamped * 32767.0) as i16;
-            let bytes = i16_val.to_le_bytes();
-            data[i * 2] = bytes[0];
-            data[i * 2 + 1] = bytes[1];
+            // Copy raw f32 bytes into frame buffer
+            let data = frame.data_mut(0);
+            let byte_slice =
+                unsafe { std::slice::from_raw_parts(chunk.as_ptr() as *const u8, chunk.len() * 4) };
+            data[..byte_slice.len()].copy_from_slice(byte_slice);
+
+            let mut resampled = ffmpeg_next::frame::Audio::empty();
+            resampler
+                .run(&frame, &mut resampled)
+                .context("resampler error")?;
+
+            if resampled.samples() > 0 {
+                encoder
+                    .send_frame(&resampled)
+                    .context("encoder send_frame failed")?;
+                receive_and_write_packets(&mut encoder, &mut octx, output_stream_time_base)?;
+            }
+        } else {
+            // Direct i16 frame creation (no resampler needed)
+            let mut frame = ffmpeg_next::frame::Audio::new(
+                enc_sample_format,
+                chunk_len,
+                ffmpeg_next::ChannelLayout::MONO,
+            );
+            frame.set_rate(sample_rate);
+            frame.set_pts(Some(pts));
+
+            let data = frame.data_mut(0);
+            for (i, &s) in chunk.iter().enumerate() {
+                let clamped = s.clamp(-1.0, 1.0);
+                let i16_val = (clamped * 32767.0) as i16;
+                let bytes = i16_val.to_le_bytes();
+                data[i * 2] = bytes[0];
+                data[i * 2 + 1] = bytes[1];
+            }
+
+            encoder
+                .send_frame(&frame)
+                .context("encoder send_frame failed")?;
+            receive_and_write_packets(&mut encoder, &mut octx, output_stream_time_base)?;
         }
-
-        encoder
-            .send_frame(&frame)
-            .context("encoder send_frame failed")?;
-
-        receive_and_write_packets(&mut encoder, &mut octx, output_stream_time_base)?;
 
         pts += chunk_len as i64;
         offset += chunk_len;
@@ -155,7 +212,6 @@ pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Resul
     encoder.send_eof().context("encoder send_eof failed")?;
     receive_and_write_packets(&mut encoder, &mut octx, output_stream_time_base)?;
 
-    // Write file trailer
     octx.write_trailer()
         .context("failed to write MP3 trailer")?;
 
