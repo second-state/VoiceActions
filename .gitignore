@@ -1,5 +1,6 @@
 /target
 /models/
+Cargo.lock
 wasm/*/target/
 *.wav
 *.mp3
