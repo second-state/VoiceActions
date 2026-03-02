@@ -306,7 +306,6 @@ jobs:
           tar xzf wasi-sdk.tar.gz
           echo "WASI_SDK_PATH=${{ github.workspace }}/wasi-sdk-25.0" >> "$GITHUB_ENV"
           echo "CC_wasm32_wasip1=${{ github.workspace }}/wasi-sdk-25.0/bin/clang" >> "$GITHUB_ENV"
-          echo "CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/wasi-sdk-25.0/share/cmake/wasi-sdk.cmake" >> "$GITHUB_ENV"
 
       - name: Build voice-actions (mlx, build-ffmpeg)
         env:
