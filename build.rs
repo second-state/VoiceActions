@@ -6,8 +6,8 @@ fn main() {
         .as_str()
     {
         "macos" => {
-            // @executable_path — finds libwasmedge.0.dylib alongside the binary
-            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
+            // @executable_path/lib — finds bundled dylibs in the lib/ subdirectory
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/lib");
         }
         "linux" => {
             // $ORIGIN/lib — finds bundled .so files in the lib/ subdirectory

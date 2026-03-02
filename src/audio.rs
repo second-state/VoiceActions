@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::Path;
 
 /// Write raw f32 audio samples to a WAV file (16-bit PCM, mono).
+#[allow(dead_code)]
 pub fn write_wav(samples: &[f32], sample_rate: u32, output_path: &Path) -> Result<()> {
     let num_samples = samples.len() as u32;
     let bytes_per_sample: u16 = 2; // 16-bit
@@ -53,7 +54,6 @@ pub fn write_wav(samples: &[f32], sample_rate: u32, output_path: &Path) -> Resul
 ///
 /// Converts f32 samples (range -1.0..1.0) to i16, processes them in
 /// encoder.frame_size() chunks, and writes the MP3 output file.
-#[allow(dead_code)]
 pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Result<()> {
     ffmpeg_next::init().context("failed to initialize ffmpeg")?;
 
@@ -169,7 +169,6 @@ pub fn encode_mp3(samples: &[f32], sample_rate: u32, output_mp3: &Path) -> Resul
 }
 
 /// Drain encoded packets from the encoder and write them to the output context.
-#[allow(dead_code)]
 fn receive_and_write_packets(
     encoder: &mut ffmpeg_next::encoder::Audio,
     octx: &mut ffmpeg_next::format::context::Output,

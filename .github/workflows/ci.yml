@@ -95,46 +95,42 @@ jobs:
               tok.backend_tokenizer.save(f'{path}/tokenizer.json')
           "
 
-      - name: Run end-to-end test
+      # Copy WasmEdge shared library to lib/ — build.rs sets $ORIGIN/lib rpath
+      - name: Copy WasmEdge library
         run: |
-          # Find WasmEdge shared library in build output
+          mkdir -p target/release/lib
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
-            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
-            echo "Found WasmEdge at: $WASMEDGE_DIR"
-            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+            cp "$WASMEDGE_LIB" target/release/lib/
+            echo "Copied WasmEdge to target/release/lib/"
           fi
 
+      - name: Run end-to-end test
+        run: |
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output.wav \
+            --output output.mp3 \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
           # Verify output exists and is non-empty
-          test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
+          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -c%s output.mp3) bytes)"
 
       - name: Run end-to-end test (LLM WASM)
         if: env.OPENAI_API_KEY != ''
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
-          if [ -n "$WASMEDGE_LIB" ]; then
-            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
-            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
-          fi
-
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output_llm.wav \
+            --output output_llm.mp3 \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm \
             --wasm wasm/llm/target/wasm32-wasip1/release/llm.wasm
 
-          test -s output_llm.wav && echo "E2E LLM test passed: output_llm.wav created ($(stat -c%s output_llm.wav) bytes)"
+          test -s output_llm.mp3 && echo "E2E LLM test passed: output_llm.mp3 created ($(stat -c%s output_llm.mp3) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -142,7 +138,7 @@ jobs:
           name: e2e-linux-x86_64
           path: |
             audio/sample.wav
-            output.wav
+            output.mp3
             target/release/voice-actions
             wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
@@ -229,44 +225,41 @@ jobs:
               tok.backend_tokenizer.save(f'{path}/tokenizer.json')
           "
 
-      - name: Run end-to-end test
+      # Copy WasmEdge shared library to lib/ — build.rs sets $ORIGIN/lib rpath
+      - name: Copy WasmEdge library
         run: |
+          mkdir -p target/release/lib
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
-            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
-            echo "Found WasmEdge at: $WASMEDGE_DIR"
-            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
+            cp "$WASMEDGE_LIB" target/release/lib/
+            echo "Copied WasmEdge to target/release/lib/"
           fi
 
+      - name: Run end-to-end test
+        run: |
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output.wav \
+            --output output.mp3 \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
-          test -s output.wav && echo "E2E test passed: output.wav created ($(stat -c%s output.wav) bytes)"
+          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -c%s output.mp3) bytes)"
 
       - name: Run end-to-end test (LLM WASM)
         if: env.OPENAI_API_KEY != ''
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
-          if [ -n "$WASMEDGE_LIB" ]; then
-            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
-            export LD_LIBRARY_PATH="${WASMEDGE_DIR}:${LD_LIBRARY_PATH}"
-          fi
-
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output_llm.wav \
+            --output output_llm.mp3 \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm \
             --wasm wasm/llm/target/wasm32-wasip1/release/llm.wasm
 
-          test -s output_llm.wav && echo "E2E LLM test passed: output_llm.wav created ($(stat -c%s output_llm.wav) bytes)"
+          test -s output_llm.mp3 && echo "E2E LLM test passed: output_llm.mp3 created ($(stat -c%s output_llm.mp3) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -274,7 +267,7 @@ jobs:
           name: e2e-linux-aarch64
           path: |
             audio/sample.wav
-            output.wav
+            output.mp3
             target/release/voice-actions
             wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
@@ -361,27 +354,27 @@ jobs:
               tok.backend_tokenizer.save(f'{path}/tokenizer.json')
           "
 
-      # Copy WasmEdge dylib next to binary — build.rs sets @executable_path rpath
-      # so no DYLD_LIBRARY_PATH is needed at runtime
+      # Copy WasmEdge dylib to lib/ — build.rs sets @executable_path/lib rpath
       - name: Copy WasmEdge dylib
         run: |
+          mkdir -p target/release/lib
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge*.dylib" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
-            cp "$WASMEDGE_LIB" target/release/
-            cd target/release && ln -sf "$(basename "$WASMEDGE_LIB")" libwasmedge.0.dylib
-            echo "Copied WasmEdge dylib to target/release/"
+            cp "$WASMEDGE_LIB" target/release/lib/
+            cd target/release/lib && ln -sf "$(basename "$WASMEDGE_LIB")" libwasmedge.0.dylib
+            echo "Copied WasmEdge dylib to target/release/lib/"
           fi
 
       - name: Run end-to-end test
         run: |
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output.wav \
+            --output output.mp3 \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
-          test -s output.wav && echo "E2E test passed: output.wav created ($(stat -f%z output.wav) bytes)"
+          test -s output.mp3 && echo "E2E test passed: output.mp3 created ($(stat -f%z output.mp3) bytes)"
 
       - name: Run end-to-end test (LLM WASM)
         if: env.OPENAI_API_KEY != ''
@@ -390,13 +383,13 @@ jobs:
         run: |
           ./target/release/voice-actions \
             --input audio/sample.wav \
-            --output output_llm.wav \
+            --output output_llm.mp3 \
             --asr-model ./models/Qwen3-ASR-0.6B \
             --tts-model ./models/Qwen3-TTS-12Hz-0.6B-CustomVoice \
             --wasm wasm/echo/target/wasm32-wasip1/release/echo.wasm \
             --wasm wasm/llm/target/wasm32-wasip1/release/llm.wasm
 
-          test -s output_llm.wav && echo "E2E LLM test passed: output_llm.wav created ($(stat -f%z output_llm.wav) bytes)"
+          test -s output_llm.mp3 && echo "E2E LLM test passed: output_llm.mp3 created ($(stat -f%z output_llm.mp3) bytes)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -404,7 +397,7 @@ jobs:
           name: e2e-macos-arm64
           path: |
             audio/sample.wav
-            output.wav
+            output.mp3
             target/release/voice-actions
             wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
