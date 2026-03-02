@@ -360,15 +360,19 @@ jobs:
               tok.backend_tokenizer.save(f'{path}/tokenizer.json')
           "
 
-      - name: Run end-to-end test
+      # Copy WasmEdge dylib next to binary — build.rs sets @executable_path rpath
+      # so no DYLD_LIBRARY_PATH is needed at runtime
+      - name: Copy WasmEdge dylib
         run: |
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge*.dylib" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
-            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
-            echo "Found WasmEdge at: $WASMEDGE_DIR"
-            export DYLD_LIBRARY_PATH="${WASMEDGE_DIR}:${DYLD_LIBRARY_PATH}"
+            cp "$WASMEDGE_LIB" target/release/
+            cd target/release && ln -sf "$(basename "$WASMEDGE_LIB")" libwasmedge.0.dylib
+            echo "Copied WasmEdge dylib to target/release/"
           fi
 
+      - name: Run end-to-end test
+        run: |
           ./target/release/voice-actions \
             --input audio/sample.wav \
             --output output.wav \
@@ -383,12 +387,6 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          WASMEDGE_LIB=$(find target/release/build -name "libwasmedge*.dylib" -type f 2>/dev/null | head -1)
-          if [ -n "$WASMEDGE_LIB" ]; then
-            WASMEDGE_DIR=$(dirname "$WASMEDGE_LIB")
-            export DYLD_LIBRARY_PATH="${WASMEDGE_DIR}:${DYLD_LIBRARY_PATH}"
-          fi
-
           ./target/release/voice-actions \
             --input audio/sample.wav \
             --output output_llm.wav \
