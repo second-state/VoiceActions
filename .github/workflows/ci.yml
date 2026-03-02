@@ -140,6 +140,7 @@ jobs:
           path: |
             audio/sample.wav
             output.mp3
+            output.wav
             target/release/voice-actions
             wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
@@ -270,6 +271,7 @@ jobs:
           path: |
             audio/sample.wav
             output.mp3
+            output.wav
             target/release/voice-actions
             wasm/echo/target/wasm32-wasip1/release/echo.wasm
 
@@ -400,6 +402,7 @@ jobs:
           path: |
             audio/sample.wav
             output.mp3
+            output.wav
             target/release/voice-actions
             wasm/echo/target/wasm32-wasip1/release/echo.wasm
 

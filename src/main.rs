@@ -111,10 +111,18 @@ fn main() -> Result<()> {
         sample_rate
     );
 
-    // --- Step 4: Encode samples to MP3 ---
+    // --- Step 4: Write WAV and encode MP3 ---
+    let wav_output = cli.output.with_extension("wav");
+    tracing::info!("Writing WAV: {}", wav_output.display());
+    audio::write_wav(&samples, sample_rate, &wav_output).context("WAV encoding failed")?;
+
     tracing::info!("Encoding MP3: {}", cli.output.display());
     audio::encode_mp3(&samples, sample_rate, &cli.output).context("MP3 encoding failed")?;
 
-    tracing::info!("Done! Output: {}", cli.output.display());
+    tracing::info!(
+        "Done! Output: {} and {}",
+        cli.output.display(),
+        wav_output.display()
+    );
     Ok(())
 }
