@@ -163,12 +163,19 @@ No libtorch or PyTorch installation required. MLX uses the Metal GPU natively.
 # Install build dependencies
 sudo apt-get install -y nasm libclang-dev pkg-config libopus-dev libmp3lame-dev
 
-# Download libtorch (CPU)
-wget -q "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcpu.zip" -O libtorch.zip
-unzip -q libtorch.zip
+# Download libtorch — pick ONE of the following:
 
-# Or for CUDA 12.8:
-# wget -q "https://download.pytorch.org/libtorch/cu128/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcu128.zip" -O libtorch.zip
+# Linux x86_64 (CPU)
+curl -LO https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcpu.zip
+unzip libtorch-cxx11-abi-shared-with-deps-2.7.1+cpu.zip
+
+# Linux ARM64 (CPU)
+curl -LO https://github.com/second-state/libtorch-releases/releases/download/v2.7.1/libtorch-cxx11-abi-aarch64-2.7.1.tar.gz
+tar xzf libtorch-cxx11-abi-aarch64-2.7.1.tar.gz
+
+# Linux x86_64 (CUDA 12.8)
+curl -LO https://download.pytorch.org/libtorch/cu128/libtorch-cxx11-abi-shared-with-deps-2.7.1%2Bcu128.zip
+unzip libtorch-cxx11-abi-shared-with-deps-2.7.1+cu128.zip
 
 # Set environment and build
 export LIBTORCH=$PWD/libtorch
@@ -177,7 +184,7 @@ export LD_LIBRARY_PATH=$LIBTORCH/lib:$LD_LIBRARY_PATH
 cargo build --release --features build-ffmpeg
 ```
 
-> **Important:** Always download libtorch directly from [pytorch.org](https://download.pytorch.org/libtorch/). Do not use `pip install torch` to obtain libtorch.
+> **Important:** Always download libtorch directly. Do not use `pip install torch` to obtain libtorch.
 
 ### Feature Flags
 
@@ -203,7 +210,7 @@ allocate(len: i32) -> i32
 Allocate `len` bytes in WASM linear memory. Return a pointer.
 
 ```
-process(ptr: i32, len: i32) -> i64
+run(ptr: i32, len: i32) -> i64
 ```
 
 Read UTF-8 input from `(ptr, len)`, process it, and return a packed i64:
@@ -211,7 +218,25 @@ Read UTF-8 input from `(ptr, len)`, process it, and return a packed i64:
 
 ### Example Module (Rust)
 
+The only function you need to change is `process()` — the ABI glue below handles memory management:
+
 ```rust
+// ---------------------------------------------------------------------------
+// Your processing logic — this is the only function you need to change
+// ---------------------------------------------------------------------------
+
+fn process(input: &str) -> String {
+    // Example: pass text through unchanged (echo)
+    input.to_string()
+
+    // Or transform it:
+    // input.to_uppercase()
+}
+
+// ---------------------------------------------------------------------------
+// WASM ABI glue (copy as-is into new modules)
+// ---------------------------------------------------------------------------
+
 use std::alloc::{alloc, Layout};
 
 #[no_mangle]
@@ -220,18 +245,18 @@ pub extern "C" fn allocate(len: i32) -> i32 {
     if len == 0 { return 0; }
     let layout = Layout::from_size_align(len, 1).expect("invalid layout");
     let ptr = unsafe { alloc(layout) };
+    if ptr.is_null() { panic!("allocation failed"); }
     ptr as i32
 }
 
 #[no_mangle]
-pub extern "C" fn process(ptr: i32, len: i32) -> i64 {
+pub extern "C" fn run(ptr: i32, len: i32) -> i64 {
     let input = unsafe {
         let slice = std::slice::from_raw_parts(ptr as *const u8, len as usize);
         String::from_utf8_lossy(slice).into_owned()
     };
 
-    // Your processing logic here — call APIs, transform text, etc.
-    let output = input.to_uppercase();
+    let output = process(&input);
 
     let output_bytes = output.as_bytes();
     let output_len = output_bytes.len() as i32;
