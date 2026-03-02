@@ -102,6 +102,7 @@ jobs:
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
             cp "$WASMEDGE_LIB" target/release/lib/
+            cd target/release/lib && ln -sf "$(basename "$WASMEDGE_LIB")" libwasmedge.so.0
             echo "Copied WasmEdge to target/release/lib/"
           fi
 
@@ -232,6 +233,7 @@ jobs:
           WASMEDGE_LIB=$(find target/release/build -name "libwasmedge.so*" -type f 2>/dev/null | head -1)
           if [ -n "$WASMEDGE_LIB" ]; then
             cp "$WASMEDGE_LIB" target/release/lib/
+            cd target/release/lib && ln -sf "$(basename "$WASMEDGE_LIB")" libwasmedge.so.0
             echo "Copied WasmEdge to target/release/lib/"
           fi
 
